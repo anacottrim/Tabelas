@@ -1,101 +1,121 @@
-import Image from "next/image";
+'use client';
+
+import { useEffect } from 'react';
+import { supabase } from '@lib/supabaseClient';
+
+// Interface para Pessoa
+interface Pessoa {
+  id?: number;
+  nome: string;
+  cpf: string;
+}
+
+// Interface para Venda
+interface Venda {
+  id?: number;
+  pessoa_id: number;
+  valor: string;
+}
+
+// Função para gerar um nome aleatório
+const generateRandomName = (): string => {
+  const names = ['Ana', 'Carlos', 'Maria', 'João', 'Paula', 'Bruno', 'Felipe', 'Antonia', 'Taniely', 'Mônica'];
+  const surnames = ['Silva', 'Souza', 'Oliveira', 'Santos', 'Ferreira', 'Costa', 'Ribeiro', 'Cotrim', 'Miranda'];
+  const randomName = names[Math.floor(Math.random() * names.length)];
+  const randomSurname = surnames[Math.floor(Math.random() * surnames.length)];
+  return `${randomName} ${randomSurname}`;
+};
+
+// Função para gerar um CPF aleatório
+const generateCPF = (): string => {
+  const digits = Array.from({ length: 9 }, () => Math.floor(Math.random() * 10));
+  return `${digits.slice(0, 3).join('')}.${digits.slice(3, 6).join('')}.${digits.slice(6, 9).join('')}-${Math.floor(10 + Math.random() * 89)}`;
+};
+
+// Função para contar registros existentes
+const countRecords = async (table: string): Promise<number> => {
+  const { count, error } = await supabase
+    .from(table)
+    .select('*', { count: 'exact', head: true });
+
+  if (error) {
+    console.error(`Erro ao contar registros na tabela ${table}:`, error.message);
+    return 0;
+  }
+
+  return count || 0;
+};
+
+// Função para gerar e inserir 100 pessoas e 4000 vendas
+const insertData = async () => {
+  try {
+    // Contar pessoas e vendas já existentes
+    const pessoasCount = await countRecords('pessoa');
+    const vendasCount = await countRecords('venda');
+
+    // Limites
+    const maxPessoas = 100;
+    const maxVendas = 4000;
+
+    // Inserindo pessoas se não atingir o limite
+    if (pessoasCount < maxPessoas) {
+      for (let i = 0; i < maxPessoas - pessoasCount; i++) {
+        const pessoa: Pessoa = {
+          nome: generateRandomName(),
+          cpf: generateCPF(),
+        };
+
+        const { data: pessoaInserida, error: pessoaError } = await supabase
+          .from('pessoa')
+          .insert([pessoa])
+          .select();
+
+        if (pessoaError) {
+          console.error('Erro ao inserir pessoa:', pessoaError.message);
+          return;
+        }
+
+        const pessoaId = pessoaInserida?.[0]?.id;
+
+        if (!pessoaId) {
+          console.error('Pessoa inserida não possui ID');
+          return;
+        }
+
+        // Inserindo vendas se não atingir o limite de 4000 vendas
+        if (vendasCount < maxVendas) {
+          for (let j = 0; j < 40 && vendasCount + j < maxVendas; j++) {
+            const venda: Venda = {
+              pessoa_id: pessoaId,
+              valor: (Math.random() * 1000).toFixed(2),
+            };
+
+            const { error: vendaError } = await supabase
+              .from('venda')
+              .insert([venda]);
+
+            if (vendaError) {
+              console.error('Erro ao inserir venda:', vendaError.message);
+              return;
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao inserir dados:', error);
+  }
+};
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  useEffect(() => {
+    insertData();
+  }, []);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  return (
+    <div>
+      <h1></h1>
+      <p>Inserindo dados automaticamente...</p>
     </div>
   );
 }
